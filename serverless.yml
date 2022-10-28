@@ -1,0 +1,59 @@
+org: elliotsperling
+app: bot-chooser-backend
+service: bot-chooser-backend
+plugins:
+  - serverless-dotenv-plugin
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  httpApi:
+    cors:
+      allowedOrigins:
+        - http://localhost:3000
+        - http://bot-chooser-frontend.s3-website.us-east-2.amazonaws.com
+  environment:
+    DYNAMODB_OTP_TABLE: otpTable
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - 'dynamodb:PutItem'
+            - 'dynamodb:Get*'
+            - 'dynamodb:Scan*'
+            - 'dynamodb:UpdateItem'
+            - 'dynamodb:DeleteItem'
+          Resource: arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/otpTable
+
+functions:
+  generateOtp:
+    handler: otp.generate
+    events:
+      - httpApi:
+          method: POST
+          path: /otp/generate
+  validateOtp:
+    handler: otp.validate
+    events:
+      - httpApi:
+          method: POST
+          path: /otp/validate
+
+resources:
+  Resources:
+    otpTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: otpTable
+        AttributeDefinitions:
+          - AttributeName: sessionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: sessionId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
